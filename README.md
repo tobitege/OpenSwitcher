@@ -4,6 +4,8 @@
 
 A small .NET 10 WinUI 3 application that reads locally installed LLMs from LM Studio and Ollama and synchronizes the selected models with the corresponding OpenCode model catalog.
 
+<img width="1432" height="1274" alt="image" src="https://github.com/user-attachments/assets/40195a4a-2118-49ec-8f07-403953140f0c" />
+
 ## Behavior
 
 - LM Studio: `GET <server>/api/v1/models`, limited to entries of type `llm`; non-empty `loaded_instances` are marked as loaded.
