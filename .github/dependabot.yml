@@ -1,0 +1,36 @@
+version: 2
+updates:
+  - package-ecosystem: "nuget"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "07:00"
+      timezone: "Europe/Berlin"
+    open-pull-requests-limit: 10
+    groups:
+      windows-app-sdk:
+        patterns:
+          - "Microsoft.WindowsAppSDK"
+          - "Microsoft.Windows.SDK.BuildTools"
+      mstest:
+        patterns:
+          - "MSTest*"
+          - "Microsoft.Testing.*"
+          - "Microsoft.NET.Test.Sdk"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "07:00"
+      timezone: "Europe/Berlin"
+    open-pull-requests-limit: 10
+    groups:
+      compatible-actions:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"

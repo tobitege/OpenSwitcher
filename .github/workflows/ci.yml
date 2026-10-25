@@ -1,0 +1,42 @@
+name: CI Build
+
+# Builds on every commit to verify everything compiles and the tests pass
+# Does NOT publish anything - just verification
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build-app:
+    runs-on: windows-2025-vs2026
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - name: Build Windows desktop app (win-x64)
+        run: dotnet build src/OpenSwitcher/OpenSwitcher.csproj -c Release -r win-x64
+
+  test-core:
+    runs-on: windows-2025-vs2026
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - name: Test Core library
+        run: dotnet test tests/OpenSwitcher.Core.Tests/OpenSwitcher.Core.Tests.csproj -c Release

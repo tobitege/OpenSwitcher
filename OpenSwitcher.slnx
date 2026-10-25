@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="src/OpenSwitcher.Core/OpenSwitcher.Core.csproj" />
+  <Project Path="src/OpenSwitcher/OpenSwitcher.csproj" />
+  <Project Path="tests/OpenSwitcher.Core.Tests/OpenSwitcher.Core.Tests.csproj" />
+</Solution>

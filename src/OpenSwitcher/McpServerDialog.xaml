@@ -1,0 +1,100 @@
+<ContentDialog
+    x:Class="OpenSwitcher.McpServerDialog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    CloseButtonText="Cancel"
+    DefaultButton="Primary"
+    PrimaryButtonClick="McpServerDialog_PrimaryButtonClick"
+    PrimaryButtonText="Save"
+    Style="{StaticResource DefaultContentDialogStyle}">
+    <ContentDialog.Resources>
+        <x:Double x:Key="ContentDialogMaxWidth">760</x:Double>
+    </ContentDialog.Resources>
+
+    <StackPanel Width="680" Spacing="12">
+        <InfoBar
+            x:Name="ErrorInfoBar"
+            IsClosable="False"
+            IsOpen="False"
+            Severity="Error" />
+        <TextBox x:Name="NameTextBox" Header="Name" PlaceholderText="server-name" />
+        <RadioButtons
+            x:Name="TypeRadioButtons"
+            Header="Type"
+            MaxColumns="2"
+            SelectionChanged="TypeRadioButtons_SelectionChanged">
+            <x:String>Local (started by OpenCode)</x:String>
+            <x:String>Remote (URL)</x:String>
+        </RadioButtons>
+
+        <StackPanel x:Name="LocalPanel" Spacing="12">
+            <Grid ColumnSpacing="8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBox
+                    x:Name="ProgramTextBox"
+                    Header="Program"
+                    PlaceholderText="npx.cmd or C:\path\to\server.exe" />
+                <Button
+                    Grid.Column="1"
+                    Padding="16,5"
+                    Click="BrowseProgramButton_Click"
+                    Content="Browse …"
+                    VerticalAlignment="Bottom" />
+            </Grid>
+            <TextBox
+                x:Name="ArgumentsTextBox"
+                Height="80"
+                AcceptsReturn="True"
+                Header="Arguments (one per line)"
+                ScrollViewer.VerticalScrollBarVisibility="Auto"
+                TextWrapping="NoWrap" />
+            <TextBox
+                x:Name="EnvironmentTextBox"
+                Height="80"
+                AcceptsReturn="True"
+                Header="Environment (NAME=value, one per line)"
+                PlaceholderText="API_TOKEN={env:MY_MCP_TOKEN}"
+                ScrollViewer.VerticalScrollBarVisibility="Auto"
+                TextWrapping="NoWrap" />
+        </StackPanel>
+
+        <StackPanel x:Name="RemotePanel" Spacing="12" Visibility="Collapsed">
+            <TextBox
+                x:Name="UrlTextBox"
+                Header="URL"
+                PlaceholderText="https://mcp.example.com/mcp" />
+            <TextBox
+                x:Name="HeadersTextBox"
+                Height="80"
+                AcceptsReturn="True"
+                Header="Headers (Name: value, one per line)"
+                PlaceholderText="Authorization: Bearer {env:MY_MCP_TOKEN}"
+                ScrollViewer.VerticalScrollBarVisibility="Auto"
+                TextWrapping="NoWrap" />
+        </StackPanel>
+
+        <Grid ColumnSpacing="24">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="300" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <NumberBox
+                x:Name="TimeoutNumberBox"
+                Header="Timeout in milliseconds (optional)"
+                Maximum="2147483647"
+                Minimum="1"
+                PlaceholderText="5000"
+                SpinButtonPlacementMode="Hidden"
+                ValidationMode="InvalidInputOverwritten" />
+            <CheckBox
+                x:Name="EnabledCheckBox"
+                Grid.Column="1"
+                Content="Enabled"
+                IsChecked="True"
+                VerticalAlignment="Bottom" />
+        </Grid>
+    </StackPanel>
+</ContentDialog>

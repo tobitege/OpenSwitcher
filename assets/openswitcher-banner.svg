@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="320" viewBox="0 0 1280 320">
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0A6BFF" />
+      <stop offset="1" stop-color="#0047C2" />
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="1280" height="320" rx="32" ry="32" fill="url(#background)" />
+  <g transform="translate(80 64) scale(0.75)">
+    <rect x="0" y="0" width="256" height="256" rx="56" ry="56" fill="#FFFFFF" />
+    <circle cx="128" cy="128" r="100" fill="#005EFD" />
+    <rect x="51.5" y="90.5" width="153" height="75" rx="37.5" ry="37.5" fill="#FFFFFF" />
+    <circle cx="167" cy="128" r="27.5" fill="#005EFD" />
+  </g>
+  <text x="320" y="168" fill="#FFFFFF" font-family="Segoe UI" font-size="84" font-weight="600">OpenSwitcher</text>
+  <text x="324" y="222" fill="#FFFFFF" fill-opacity="0.85" font-family="Segoe UI" font-size="30">Switch MCP servers and local models for OpenCode (unofficial)</text>
+</svg>

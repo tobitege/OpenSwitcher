@@ -1,0 +1,212 @@
+name: Release
+
+# MANUAL TRIGGER ONLY - Creates a new release with the self-contained Windows app
+# Go to Actions → Release → Run workflow → Enter version (e.g., 0.1.0)
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., 0.1.0) - without "v" prefix'
+        required: true
+        type: string
+      skip_tag:
+        description: 'Skip tag creation (assumes you already pushed the tag manually)'
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.validate.outputs.version }}
+      tag: ${{ steps.validate.outputs.tag }}
+    steps:
+      - name: Validate version format
+        id: validate
+        run: |
+          VERSION="${{ inputs.version }}"
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Invalid version format. Use semantic versioning (e.g., 0.1.0)"
+            exit 1
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag=v$VERSION" >> $GITHUB_OUTPUT
+          echo "✅ Version: $VERSION, Tag: v$VERSION"
+
+  build-app:
+    needs: validate
+    runs-on: windows-2025-vs2026
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - name: Verify version from evaluated MSBuild properties
+        shell: bash
+        run: |
+          EVALUATED_VERSION=$(dotnet msbuild src/OpenSwitcher/OpenSwitcher.csproj -nologo -getProperty:Version | tail -n 1 | tr -d '[:space:]')
+          if [ "$EVALUATED_VERSION" != "${{ needs.validate.outputs.version }}" ]; then
+            echo "::error::Version mismatch! evaluated project version is $EVALUATED_VERSION but you specified ${{ needs.validate.outputs.version }}"
+            echo "::error::Please update the centralized version metadata (Directory.Build.props)."
+            exit 1
+          fi
+          echo "✅ Version matches: $EVALUATED_VERSION"
+
+      - name: Publish Windows app (win-x64, self-contained)
+        run: dotnet publish src/OpenSwitcher/OpenSwitcher.csproj -c Release -r win-x64 --self-contained -o publish
+
+      - name: Zip Windows artifact
+        run: Compress-Archive -Path ./publish/* -DestinationPath ./OpenSwitcher-win-x64.zip
+        shell: pwsh
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: OpenSwitcher-win-x64
+          path: ./OpenSwitcher-win-x64.zip
+
+  publish:
+    needs: [validate, build-app]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v8
+        with:
+          path: ./release-artifacts
+
+      - name: Collect artifacts
+        run: |
+          mkdir -p ./final
+          find ./release-artifacts -name "*.zip" -exec cp {} ./final/ \;
+          echo "=== Release artifacts ==="
+          ls -la ./final/
+
+      - name: Create checksums
+        working-directory: ./final
+        run: |
+          sha256sum -- * > ../SHA256SUMS.txt
+          mv ../SHA256SUMS.txt ./SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      # Signed build provenance for every release asset, verifiable with `gh attestation verify`.
+      - name: Attest build provenance
+        uses: actions/attest@v4
+        with:
+          subject-path: './final/*'
+
+      - name: Extract changelog
+        id: changelog
+        run: |
+          VERSION="${{ needs.validate.outputs.version }}"
+          # Extract the section for this version from CHANGELOG.md
+          CHANGELOG=$(awk -v ver="$VERSION" '
+            /^## \[/ {
+              if (found) exit
+              if ($0 ~ "\\[" ver "\\]") found=1
+            }
+            found && !/^## \[/ { print }
+          ' CHANGELOG.md)
+
+          if [ -z "$CHANGELOG" ]; then
+            echo "⚠️ No changelog entry found for version $VERSION"
+            CHANGELOG="No changelog entry for this version."
+          fi
+
+          echo "$CHANGELOG" > changelog_section.md
+          echo "✅ Extracted changelog for v$VERSION"
+
+      - name: Create and push tag
+        if: ${{ inputs.skip_tag != true }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag ${{ needs.validate.outputs.tag }}
+          git push origin ${{ needs.validate.outputs.tag }}
+          echo "✅ Created tag: ${{ needs.validate.outputs.tag }}"
+
+      - name: Skip tag creation
+        if: ${{ inputs.skip_tag == true }}
+        run: echo "⏭️ Skipping tag creation (tag already exists)"
+
+      - name: Build release notes
+        run: |
+          cat > release_notes.md << 'HEADER'
+          ## 📋 What's Changed
+          HEADER
+          cat changelog_section.md >> release_notes.md
+          cat >> release_notes.md << 'APP'
+
+          ---
+
+          ## 📦 Download
+
+          Self-contained executable (no .NET install required). Extract the zip and run `OpenSwitcher.exe`.
+
+          | Platform | Download |
+          |----------|----------|
+          | Windows x64 | `OpenSwitcher-win-x64.zip` |
+          APP
+
+          cat >> release_notes.md << 'VERIFY'
+
+          ## 🔐 Verify downloads
+
+          This workflow built every asset above and attested its build provenance. To check that a file comes from this repository and release build:
+
+          ```
+          gh attestation verify <file> --repo ${{ github.repository }}
+          ```
+
+          `SHA256SUMS.txt` lists the SHA-256 checksum of every asset; check all of them with `sha256sum -c SHA256SUMS.txt`, or one file in PowerShell with `Get-FileHash <file>`.
+          VERIFY
+
+          echo "=== Release Notes ==="
+          cat release_notes.md
+
+      - name: Load custom release notes
+        id: release_body
+        run: |
+          {
+            echo 'body<<EOF'
+            cat release_notes.md
+            echo ''
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ needs.validate.outputs.tag }}
+          name: "v${{ needs.validate.outputs.version }}"
+          files: ./final/*
+          generate_release_notes: true
+          body: ${{ steps.release_body.outputs.body }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Summary
+        run: |
+          echo "## 🎉 Release Complete!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version:** ${{ needs.validate.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Tag:** ${{ needs.validate.outputs.tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Release:** ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ needs.validate.outputs.tag }}" >> $GITHUB_STEP_SUMMARY
